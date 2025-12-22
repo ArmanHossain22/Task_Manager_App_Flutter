@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:task_manager/data/service/network_caller.dart';
-import 'package:task_manager/data/utils/urls.dart';
+import 'package:provider/provider.dart';
+import 'package:task_manager/ui/providers/add_new_task_provider.dart';
 import 'package:task_manager/ui/widgets/center_circular_progress.dart';
 import 'package:task_manager/ui/widgets/snack_bar_message.dart';
 import 'package:task_manager/ui/widgets/tm_app_bar.dart';
@@ -17,68 +17,76 @@ class _AddNewTaskScreenState extends State<AddNewTaskScreen> {
   final TextEditingController _titleTEController = TextEditingController();
   final TextEditingController _descriptionTEController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  bool _addNewTaskInProgress = false;
+
+  final AddNewTaskProvider _addNewTaskProvider = AddNewTaskProvider();
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: TMAppBar(),
-      body: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              spacing: 8,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 36),
-                Text(
-                  "Add New Task",
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _titleTEController,
-                  decoration: InputDecoration(
-                    hintText: "Subject",
+    return ChangeNotifierProvider(
+      create: (_) => _addNewTaskProvider,
+      child: Scaffold(
+        appBar: TMAppBar(),
+        body: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Form(
+              key: _formKey,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              child: Column(
+                spacing: 8,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 36),
+                  Text(
+                    "Add New Task",
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  validator: (String? value)
-                  {
-                    if(value?.trim().isEmpty ?? true)
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _titleTEController,
+                    decoration: InputDecoration(
+                      hintText: "Subject",
+                    ),
+                    validator: (String? value)
                     {
-                      return "Subject is required";
-                    }
-                    return null;
-                  },
-                ),
-                TextFormField(
-                  controller: _descriptionTEController,
-                  decoration: InputDecoration(
-                    hintText: "Description",
+                      if(value?.trim().isEmpty ?? true)
+                      {
+                        return "Subject is required";
+                      }
+                      return null;
+                    },
                   ),
-                  maxLines: 5,
-                  validator: (String? value)
-                  {
-                    if(value?.trim().isEmpty ?? true)
+                  TextFormField(
+                    controller: _descriptionTEController,
+                    decoration: InputDecoration(
+                      hintText: "Description",
+                    ),
+                    maxLines: 5,
+                    validator: (String? value)
                     {
-                      return "Description is required";
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                Visibility(
-                  visible: !_addNewTaskInProgress,
-                  replacement: CenterCircularProgress(),
-                  child: FilledButton(
-                      onPressed: _onTapCreateButton,
-                      child: Icon(Icons.arrow_circle_right_outlined )
+                      if(value?.trim().isEmpty ?? true)
+                      {
+                        return "Description is required";
+                      }
+                      return null;
+                    },
                   ),
-                ),
-              ],
-            ),
-          )
-      )
+                  const SizedBox(height: 8),
+                  Consumer(
+                    builder: (context, AddNewTaskProvider value, child){
+                      return Visibility(
+                        visible: !_addNewTaskProvider.getAddNewTaskInProgress,
+                        replacement: CenterCircularProgress(),
+                        child: FilledButton(
+                            onPressed: _onTapCreateButton,
+                            child: Icon(Icons.arrow_circle_right_outlined )
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            )
+        )
+      ),
     );
   }
 
@@ -91,35 +99,19 @@ class _AddNewTaskScreenState extends State<AddNewTaskScreen> {
 
   Future<void> _addNewTask() async
   {
-    _addNewTaskInProgress = true;
-    setState(() {
-
-    });
-
-    Map<String, dynamic> requestBody = {
-      "title" : _titleTEController.text.trim(),
-      "description" : _descriptionTEController.text.trim(),
-      "status" : "New"
-    };
-
-    final NetworkResponse response = await NetworkCaller.postRequest(
-      Urls.createNewTaskUrl,
-      body: requestBody
+    final bool isSuccess = await _addNewTaskProvider.addNewTask(
+      _titleTEController.text.trim(),
+      _descriptionTEController.text.trim()
     );
 
-    _addNewTaskInProgress = false;
-    setState(() {
-
-    });
-
-    if(response.isSuccess)
+    if(isSuccess)
     {
       _clearTextFields();
       showSnackBarMessage(context, "New Task Added!");
     }
     else
     {
-      showSnackBarMessage(context, response.errorMessage);
+      showSnackBarMessage(context, _addNewTaskProvider.errorMessage!);
     }
   }
 
